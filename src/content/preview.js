@@ -231,7 +231,6 @@
 			const inputText = this._readInputText();
 			const currentTotal = this.currentConvTokens;
 			const limit = CC.CONST.CONTEXT_LIMIT_TOKENS;
-			const currentPct = Math.max(0, Math.min(100, (currentTotal / limit) * 100));
 
 			let deltaTokens = 0;
 			let warning = '';
@@ -249,8 +248,16 @@
 			}
 
 			const projectedTotal = currentTotal + deltaTokens;
-			const projectedPctRaw = (projectedTotal / limit) * 100; // unclamped — used for over-limit detection
-			const projectedPct = Math.max(0, Math.min(100, projectedPctRaw));
+
+			// Raw (unclamped) percentages — used for text display so users see the
+			// actual overflow magnitude (e.g. "116%") instead of a misleading "100%".
+			// Matches what the modal shows. See Option B in the consistency discussion.
+			const currentPctRaw = Math.max(0, (currentTotal / limit) * 100);
+			const projectedPctRaw = Math.max(0, (projectedTotal / limit) * 100);
+
+			// Clamped percentage — used only for bar fill width and tier color,
+			// since the bar element can't visually render past 100%.
+			const projectedPctForBar = Math.min(100, projectedPctRaw);
 
 			// Phase D: trigger handoff modal once per conversation when projection ≥ 85%
 			if (this.currentConversationId && CC.modal?.maybeShow) {
@@ -261,24 +268,26 @@
 			}
 
 			// Round once so the visual % matches the comparison (avoids "47% → 47%" looking redundant)
-			const currentRounded = Math.round(currentPct);
-			const projectedRounded = Math.round(projectedPct);
+			const currentRounded = Math.round(currentPctRaw);
+			const projectedRounded = Math.round(projectedPctRaw);
 
 			// Hide the arrow when both rounds are equal; show "context X%" instead
 			const pctPart = currentRounded === projectedRounded
 				? `context ${projectedRounded}%`
 				: `${currentRounded}% → ${projectedRounded}%`;
 
-			// Over-limit indicator: projected total exceeds the 200k context cap
+			// Over-limit indicator: projected total exceeds the 200k context cap.
+			// Kept even when the % itself is shown (e.g. "116%") because the suffix
+			// makes the overflow unmistakable at a glance.
 			const overSuffix = projectedPctRaw > 100 ? '  ·  over limit' : '';
 
 			const text = `+${deltaTokens.toLocaleString()} tok (est.)  ·  ${pctPart}${overSuffix}${warning}`;
 
 			this.textSpan.textContent = text;
 
-			// Bar visualizes the PROJECTED %, tinted by tier
-			this.barFill.style.width = `${projectedPct}%`;
-			applyTier(this.barFill, projectedPct);
+			// Bar visualizes the PROJECTED %, tinted by tier (clamped so it doesn't overflow visually)
+			this.barFill.style.width = `${projectedPctForBar}%`;
+			applyTier(this.barFill, projectedPctForBar);
 		}
 	}
 
