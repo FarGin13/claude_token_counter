@@ -6,8 +6,8 @@
  *   1. "Send anyway"   — dismiss, let the user send
  *   2. "Help me save context" — insert a structured handoff prompt into the chat input
  *
- * Fires at most once per conversation per page load. Phase E will persist the
- * "shown for X" set across reloads via chrome.storage.local.
+ * Fires at most once per conversation per page load. The shown-for-conversation
+ * Set is intentionally in-memory only — see DESIGN.md for the persistence decision.
  */
 (() => {
 	'use strict';

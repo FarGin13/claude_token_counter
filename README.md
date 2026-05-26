@@ -1,52 +1,72 @@
 # Claude Token Counter
 
-A browser extension that shows token count, cache timer, and usage bars on claude.ai — with traffic-light color warnings and a pre-send token preview.
+A browser extension for [claude.ai](https://claude.ai) that shows token usage with traffic-light color warnings, a live pre-send token preview, and a context-handoff modal at 85%.
 
-> Forked from [she-llac/claude-counter](https://github.com/she-llac/claude-counter) (MIT). Original credit to the upstream maintainers.
+> **Forked from [she-llac/claude-counter](https://github.com/she-llac/claude-counter)** (MIT). All upstream features (token count, cache timer, session + weekly usage bars) are preserved. This fork adds the warning system, preview, and handoff modal described below.
 
 ![Claude Token Counter screenshot](./screenshot.png)
 
-## Features
+## What this fork adds
 
-- **Token count** — Approximate token count for the current conversation, with a mini progress bar against the 200k context limit
-- **Cache timer** — Countdown showing how long the conversation remains cached (cheaper to continue)
-- **Usage bars** — Session (5-hour) and weekly (7-day) usage from Claude's native API, with progress bars and reset countdowns (more accurate than the rounded /usage page)
+| Feature | Where you see it |
+|---|---|
+| **Traffic-light color system** — green (<50%), yellow (50–70%), red (≥70%) | On the main context bar, session bar, weekly bar, and preview bar |
+| **Pre-send token preview** — live estimate of `+N tok · current% → projected%` as you type or paste | A new line below the message input |
+| **85% handoff modal** — Claude-style popup that fires once per conversation when projected context crosses 85% | Two CTAs: dismiss, or inject a structured handoff prompt into the chat input so your next message becomes a portable memory summary |
 
-## Installation
+## Installation (developer / unpacked)
 
-**Chrome / Edge / Chromium**
+This fork is **not** distributed as a release zip or a Chrome Web Store listing. Install from source:
 
-1. Download [`claude-counter-0.4.2.zip`](../../releases/download/v0.4.2/claude-counter-0.4.2.zip)
-2. Go to `chrome://extensions` and enable **Developer mode**
-3. Drag and drop the zip onto the page
+```bash
+git clone https://github.com/<your-username>/claude-token-counter.git
+```
 
-**Firefox**
+Then in Chrome / Edge / Brave:
 
-1. Download [`claude-counter-0.4.2.xpi`](../../releases/download/v0.4.2/claude-counter-0.4.2.xpi)
-2. Drag it into any Firefox window and click **Add**
+1. Open `chrome://extensions`
+2. Enable **Developer mode** (top-right toggle)
+3. Click **Load unpacked**
+4. Pick the cloned folder
+5. Open https://claude.ai — extension is active
 
-**Userscript**
+To get updates: `git pull` then click the 🔄 refresh icon on the extension card.
 
-1. Install the userscript from [`claude-counter.user.js`](./userscript/claude-counter.user.js)
+## Honest limitations
+
+This is a hobby fork. Real things you should know before relying on it:
+
+- **Token counts are approximate.** We use OpenAI's `o200k_base` tokenizer because Claude's real tokenizer isn't public. Expect ±5–15% deviation from Claude's actual counts. Every number is labeled `(est.)`.
+- **The extension depends on private claude.ai endpoints.** Anthropic hasn't documented these and can change them at any time. When that happens, the extension breaks until selectors get updated.
+- **No automatic updates.** You're running a `git pull` workflow, not a store-managed extension.
+- **The 85% modal re-pops after a page refresh.** Intentional — we didn't add `chrome.storage` persistence to keep the permission footprint minimal. See [DESIGN.md](./DESIGN.md) for the reasoning.
+- **Session/weekly quota impact is not shown** in the pre-send preview. claude.ai's API only exposes % used, not the absolute token capacity behind the limit — so we can't honestly compute "+X% of quota."
+- **Attachments (images, PDFs) are not counted** in the pre-send preview. They contribute to the conversation token total once Claude processes them.
+- **Tested only on Chrome MV3.** Firefox and Edge should work (same MV3 manifest) but aren't actively tested.
 
 ## How it works
 
-- Intercepts Claude's API responses to read conversation data and usage info
-- Uses a vendored tokenizer (`o200k_base`) for approximate token counting
-- Uses Claude’s `/usage` plus live SSE `message_limit` data; the SSE provides exact, unrounded utilization fractions, so the progress bars are more accurate than the rounded percentages shown on Claude’s native /usage page
-- Watches for DOM changes to inject UI elements as you navigate
+1. A content script wraps `window.fetch` to intercept claude.ai's API responses.
+2. Conversation data flows through `tokens.js`, which counts tokens via the bundled o200k tokenizer.
+3. `ui.js` renders the upstream header + usage bars; `preview.js` renders the new pre-send preview; `modal.js` handles the 85% popup.
+4. The bridge runs in page context (`src/injected/bridge.js`) and talks to the content script via `window.postMessage`.
+
+For deeper architecture notes, see [DESIGN.md](./DESIGN.md).
 
 ## Privacy
 
-- All data stays local — no external servers, no tracking
-- Reads your `lastActiveOrg` cookie to query Claude's `/usage` endpoint
-- Makes requests only to `claude.ai`
+- All processing happens locally in your browser.
+- The extension reads your existing `lastActiveOrg` cookie to query claude.ai's `/usage` endpoint — same authentication claude.ai itself uses.
+- No data is sent to any external server.
+- No tracking, no telemetry.
+- The fork has **zero permissions** declared in the manifest beyond what's needed to inject scripts into `claude.ai/*`.
 
 ## Credits
 
-- Token counting via [gpt-tokenizer](https://github.com/niieani/gpt-tokenizer) (MIT)
-- Inspired by [Claude Usage Tracker](https://github.com/lugia19/Claude-Usage-Extension) by lugia19
+- Upstream extension: [she-llac/claude-counter](https://github.com/she-llac/claude-counter) — the entire base architecture, token counting, cache timer, and usage bars are theirs.
+- Tokenizer: [gpt-tokenizer](https://github.com/niieani/gpt-tokenizer) (MIT, bundled in `src/vendor/o200k_base.js`).
+- Inspired by [Claude Usage Tracker](https://github.com/lugia19/Claude-Usage-Extension) by lugia19.
 
 ## License
 
-MIT
+MIT — same as upstream. See [LICENSE](./LICENSE).
