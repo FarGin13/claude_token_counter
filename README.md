@@ -37,23 +37,32 @@ Fires once per conversation when projected context crosses 85%. Two CTAs:
 
 Clicking the handoff CTA loads the template directly into Claude.ai's contenteditable input (uses `document.execCommand` so ProseMirror's editor state updates properly and the send button stays enabled). You can edit it before sending.
 
-## Installation (developer / unpacked)
+## Installation
 
-This fork is **not** distributed as a release zip or a Chrome Web Store listing. Install from source:
+This fork isn't on the Chrome Web Store. Install via one of two paths:
+
+### Option 1 — Download zip (easiest)
+
+1. Go to the [latest release](https://github.com/FarGin13/claude_token_counter/releases/latest) and download the source code zip.
+   Direct link: [`v0.5.0.zip`](https://github.com/FarGin13/claude_token_counter/archive/refs/tags/v0.5.0.zip)
+2. Extract the zip anywhere
+3. Open `chrome://extensions`
+4. Enable **Developer mode** (top-right toggle)
+5. Click **Load unpacked**
+6. Pick the extracted folder
+7. Open https://claude.ai — extension is active
+
+To update later: download the newer zip, remove the old folder from `chrome://extensions`, and load the new one.
+
+### Option 2 — Clone with git (for developers who want easy updates)
 
 ```bash
-git clone https://github.com/<your-username>/claude-token-counter.git
+git clone https://github.com/FarGin13/claude_token_counter.git
 ```
 
-Then in Chrome / Edge / Brave:
+Then steps 3–7 above, picking the cloned folder.
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked**
-4. Pick the cloned folder
-5. Open https://claude.ai — extension is active
-
-To get updates: `git pull` then click the 🔄 refresh icon on the extension card.
+To update: `git pull` inside the folder, then click the 🔄 refresh icon on the extension card in `chrome://extensions`.
 
 ## Honest limitations
 
