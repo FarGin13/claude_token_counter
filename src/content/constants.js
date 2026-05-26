@@ -24,6 +24,20 @@
 		PROGRESS_MARKER_LIGHT: '#111111',
 		RED_WARNING: '#ce2029',
 		BOLD_LIGHT: '#141413',
-		BOLD_DARK: '#faf9f5'
+		BOLD_DARK: '#faf9f5',
+		// --- Fork additions: traffic-light tier colors ---
+		TIER_GREEN_DARK: '#10B981',
+		TIER_GREEN_LIGHT: '#34D399',
+		TIER_YELLOW_DARK: '#F59E0B',
+		TIER_YELLOW_LIGHT: '#FBBF24',
+		TIER_RED_DARK: '#EF4444',
+		TIER_RED_LIGHT: '#F87171'
+	});
+
+	// --- Fork additions: utilization thresholds (percentages) ---
+	CC.THRESHOLDS = Object.freeze({
+		YELLOW: 50,  // >= 50% → yellow tier
+		RED: 70,     // >= 70% → red tier
+		MODAL: 85    // >= 85% → trigger handoff modal (Phase D)
 	});
 })();

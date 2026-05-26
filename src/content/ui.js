@@ -138,12 +138,16 @@
 				strokeColor: isDark ? CC.COLORS.PROGRESS_OUTLINE_DARK : CC.COLORS.PROGRESS_OUTLINE_LIGHT,
 				fillColor: isDark ? CC.COLORS.PROGRESS_FILL_DARK : CC.COLORS.PROGRESS_FILL_LIGHT,
 				markerColor: isDark ? CC.COLORS.PROGRESS_MARKER_DARK : CC.COLORS.PROGRESS_MARKER_LIGHT,
-				boldColor: isDark ? CC.COLORS.BOLD_DARK : CC.COLORS.BOLD_LIGHT
+				boldColor: isDark ? CC.COLORS.BOLD_DARK : CC.COLORS.BOLD_LIGHT,
+				// --- Fork additions: traffic-light tier colors ---
+				tierGreen: isDark ? CC.COLORS.TIER_GREEN_DARK : CC.COLORS.TIER_GREEN_LIGHT,
+				tierYellow: isDark ? CC.COLORS.TIER_YELLOW_DARK : CC.COLORS.TIER_YELLOW_LIGHT,
+				tierRed: isDark ? CC.COLORS.TIER_RED_DARK : CC.COLORS.TIER_RED_LIGHT
 			};
 		}
 
 		refreshProgressChrome() {
-			const { strokeColor, fillColor, markerColor } = this.getProgressChrome();
+			const { strokeColor, fillColor, markerColor, tierGreen, tierYellow, tierRed } = this.getProgressChrome();
 
 			const applyBarChrome = (bar, { fillWarn } = {}) => {
 				if (!bar) return;
@@ -151,11 +155,30 @@
 				bar.style.setProperty('--cc-fill', fillColor);
 				bar.style.setProperty('--cc-fill-warn', fillWarn ?? fillColor);
 				bar.style.setProperty('--cc-marker', markerColor);
+				// --- Fork additions: traffic-light tier colors per-bar ---
+				bar.style.setProperty('--cc-tier-green', tierGreen);
+				bar.style.setProperty('--cc-tier-yellow', tierYellow);
+				bar.style.setProperty('--cc-tier-red', tierRed);
 			};
 
 			applyBarChrome(this.lengthBar, { fillWarn: fillColor });
 			applyBarChrome(this.sessionBar, { fillWarn: CC.COLORS.RED_WARNING });
 			applyBarChrome(this.weeklyBar, { fillWarn: CC.COLORS.RED_WARNING });
+		}
+
+		/**
+		 * Fork addition: apply traffic-light tier class to a bar fill element based on percentage.
+		 * Replaces the binary blue-or-warn pattern with three tiers (green / yellow / red).
+		 * Thresholds defined in CC.THRESHOLDS (constants.js).
+		 */
+		_applyTier(fillEl, pct) {
+			if (!fillEl) return;
+			const isGreen = pct < CC.THRESHOLDS.YELLOW;
+			const isYellow = pct >= CC.THRESHOLDS.YELLOW && pct < CC.THRESHOLDS.RED;
+			const isRed = pct >= CC.THRESHOLDS.RED;
+			fillEl.classList.toggle('cc-tier-green', isGreen);
+			fillEl.classList.toggle('cc-tier-yellow', isYellow);
+			fillEl.classList.toggle('cc-tier-red', isRed);
 		}
 
 		initialize() {
@@ -401,6 +424,7 @@
 				fill.style.width = `${pct}%`;
 				bar.appendChild(fill);
 				this.refreshProgressChrome();
+				this._applyTier(fill, pct); // Fork addition: traffic-light tier
 
 				const barContainer = document.createElement('span');
 				barContainer.className = 'inline-flex items-center';
@@ -472,10 +496,11 @@
 				this.sessionBarFill.style.width = `${width}%`;
 				this.sessionBarFill.classList.toggle('cc-warn', width >= 90);
 				this.sessionBarFill.classList.toggle('cc-full', width >= 99.5);
+				this._applyTier(this.sessionBarFill, width); // Fork addition
 			} else {
 				this.sessionUsageSpan.textContent = '';
 				this.sessionBarFill.style.width = '0%';
-				this.sessionBarFill.classList.remove('cc-warn', 'cc-full');
+				this.sessionBarFill.classList.remove('cc-warn', 'cc-full', 'cc-tier-green', 'cc-tier-yellow', 'cc-tier-red');
 				this.sessionResetMs = null;
 				this.sessionWindowStartMs = null;
 			}
@@ -499,12 +524,13 @@
 				this.weeklyBarFill.style.width = `${width}%`;
 				this.weeklyBarFill.classList.toggle('cc-warn', width >= 90);
 				this.weeklyBarFill.classList.toggle('cc-full', width >= 99.5);
+				this._applyTier(this.weeklyBarFill, width); // Fork addition
 			} else {
 				this.weeklyUsageSpan.classList.add('cc-hidden');
 				this.weeklyBar.classList.add('cc-hidden');
 				this.weeklyResetMs = null;
 				this.weeklyWindowStartMs = null;
-				this.weeklyBarFill.classList.remove('cc-warn', 'cc-full');
+				this.weeklyBarFill.classList.remove('cc-warn', 'cc-full', 'cc-tier-green', 'cc-tier-yellow', 'cc-tier-red');
 			}
 
 			this._updateMarkers();

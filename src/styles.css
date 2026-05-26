@@ -125,3 +125,16 @@
 .cc-hidden {
 	display: none !important;
 }
+
+/* --- Fork additions: traffic-light tier classes --- */
+/* CSS variables (--cc-tier-*) are set per-bar from JS in refreshProgressChrome(). */
+/* These rules override the default --cc-fill background when a tier class is applied. */
+.cc-bar__fill.cc-tier-green {
+	background: var(--cc-tier-green);
+}
+.cc-bar__fill.cc-tier-yellow {
+	background: var(--cc-tier-yellow);
+}
+.cc-bar__fill.cc-tier-red {
+	background: var(--cc-tier-red);
+}

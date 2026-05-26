@@ -1,8 +1,10 @@
-# Claude Counter
+# Claude Token Counter
 
-A minimal browser extension that shows token count, cache timer, and usage bars on claude.ai.
+A browser extension that shows token count, cache timer, and usage bars on claude.ai — with traffic-light color warnings and a pre-send token preview.
 
-![Claude Counter screenshot](./screenshot.png)
+> Forked from [she-llac/claude-counter](https://github.com/she-llac/claude-counter) (MIT). Original credit to the upstream maintainers.
+
+![Claude Token Counter screenshot](./screenshot.png)
 
 ## Features
 
