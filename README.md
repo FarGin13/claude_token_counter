@@ -4,7 +4,7 @@ A browser extension for [claude.ai](https://claude.ai) that shows token usage wi
 
 > **Forked from [she-llac/claude-counter](https://github.com/she-llac/claude-counter)** (MIT). All upstream features (token count, cache timer, session + weekly usage bars) are preserved. This fork adds the warning system, preview, and handoff modal described below.
 
-![Claude Token Counter screenshot](./screenshot.png)
+![Traffic-light bars and pre-send token preview](./screenshots/01-preview-and-bars.png)
 
 ## What this fork adds
 
@@ -13,6 +13,29 @@ A browser extension for [claude.ai](https://claude.ai) that shows token usage wi
 | **Traffic-light color system** — green (<50%), yellow (50–70%), red (≥70%) | On the main context bar, session bar, weekly bar, and preview bar |
 | **Pre-send token preview** — live estimate of `+N tok · current% → projected%` as you type or paste | A new line below the message input |
 | **85% handoff modal** — Claude-style popup that fires once per conversation when projected context crosses 85% | Two CTAs: dismiss, or inject a structured handoff prompt into the chat input so your next message becomes a portable memory summary |
+
+## Screenshots
+
+### Traffic-light bars + pre-send preview
+
+![Traffic-light bars and pre-send preview](./screenshots/01-preview-and-bars.png)
+
+Session bar (5-hour window) is red at 100%, weekly is green at 22%, and the new pre-send preview line at the bottom projects the impact of your typed message — here `+699 tok (est.) · 116% → 117% · over limit`. The bar tints itself green / yellow / red based on the projected percentage.
+
+### 85% handoff modal
+
+![Handoff modal at 85% projected context](./screenshots/02-handoff-modal.png)
+
+Fires once per conversation when projected context crosses 85%. Two CTAs:
+
+- **Send anyway** — closes the dialog, you continue normally
+- **Replace input with handoff prompt** — injects a structured 5-point memory-extraction template into the chat input so your next message becomes a portable handoff you can paste into a new conversation or another AI tool
+
+### Handoff prompt injected into the chat input
+
+![Handoff prompt loaded into Claude's input box, ready to edit and send](./screenshots/03-handoff-prompt-injected.png)
+
+Clicking the handoff CTA loads the template directly into Claude.ai's contenteditable input (uses `document.execCommand` so ProseMirror's editor state updates properly and the send button stays enabled). You can edit it before sending.
 
 ## Installation (developer / unpacked)
 
