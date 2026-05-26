@@ -206,5 +206,6 @@
 		};
 	}
 
-	CC.tokens = { computeConversationMetrics };
+	// Fork addition: expose countTokens so the pre-send preview module can use it directly.
+	CC.tokens = { computeConversationMetrics, countTokens };
 })();

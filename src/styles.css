@@ -138,3 +138,22 @@
 .cc-bar__fill.cc-tier-red {
 	background: var(--cc-tier-red);
 }
+
+/* --- Fork additions: pre-send preview row --- */
+.cc-previewRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 2px;
+	user-select: none;
+	width: 100%;
+}
+
+.cc-previewText {
+	white-space: nowrap;
+}
+
+.cc-bar--preview {
+	flex: 1;
+	width: auto;
+}

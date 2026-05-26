@@ -135,6 +135,10 @@
 	});
 	ui.initialize();
 
+	// --- Fork addition: pre-send token preview ---
+	const preview = new CC.preview.PreviewBar();
+	preview.initialize();
+
 	// Bridge must be ready before we can make requests
 	const bridgeReady = CC.injectBridgeOnce();
 
@@ -207,6 +211,7 @@
 
 		const metrics = await CC.tokens.computeConversationMetrics(data);
 		ui.setConversationMetrics({ totalTokens: metrics.totalTokens, cachedUntil: metrics.cachedUntil });
+		preview.setCurrentConversationTokens(metrics.totalTokens); // Fork addition
 	}
 
 	function handleMessageLimit(messageLimit) {
@@ -224,7 +229,10 @@
 		// Attach usage line and header independently - they have different anchor elements
 		// and CHAT_MENU_TRIGGER doesn't exist on home/new pages
 		waitForElement(CC.DOM.MODEL_SELECTOR_DROPDOWN, 60000).then((el) => {
-			if (el) ui.attachUsageLine();
+			if (el) {
+				ui.attachUsageLine();
+				preview.attach(); // Fork addition: preview anchors on the same grid container
+			}
 		});
 		waitForElement(CC.DOM.CHAT_MENU_TRIGGER, 60000).then((el) => {
 			if (el) ui.attachHeader();
@@ -232,6 +240,7 @@
 
 		if (!currentConversationId) {
 			ui.setConversationMetrics();
+			preview.setCurrentConversationTokens(0); // Fork addition
 			return;
 		}
 
