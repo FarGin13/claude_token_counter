@@ -211,7 +211,7 @@
 
 		const metrics = await CC.tokens.computeConversationMetrics(data);
 		ui.setConversationMetrics({ totalTokens: metrics.totalTokens, cachedUntil: metrics.cachedUntil });
-		preview.setCurrentConversationTokens(metrics.totalTokens); // Fork addition
+		preview.setCurrentConversationTokens(metrics.totalTokens, conversationId); // Fork addition (Phase D: pass convId for modal tracking)
 	}
 
 	function handleMessageLimit(messageLimit) {
@@ -240,7 +240,7 @@
 
 		if (!currentConversationId) {
 			ui.setConversationMetrics();
-			preview.setCurrentConversationTokens(0); // Fork addition
+			preview.setCurrentConversationTokens(0, null); // Fork addition
 			return;
 		}
 

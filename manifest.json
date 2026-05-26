@@ -38,6 +38,7 @@
         "src/vendor/o200k_base.js",
         "src/content/tokens.js",
         "src/content/ui.js",
+        "src/content/modal.js",
         "src/content/preview.js",
         "src/content/main.js"
       ]

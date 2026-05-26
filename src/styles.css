@@ -157,3 +157,99 @@
 	flex: 1;
 	width: auto;
 }
+
+/* --- Fork additions: handoff modal --- */
+.cc-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 99999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	backdrop-filter: blur(2px);
+}
+
+.cc-modal {
+	background: #2a2a2a;
+	color: #faf9f5;
+	border-radius: 10px;
+	padding: 24px;
+	width: 480px;
+	max-width: calc(100vw - 32px);
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+	font-family: inherit;
+}
+
+html[data-mode="light"] .cc-modal {
+	background: #fafaf7;
+	color: #141413;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.cc-modal__title {
+	margin: 0 0 12px;
+	font-size: 17px;
+	font-weight: 600;
+}
+
+.cc-modal__body p {
+	margin: 0 0 10px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.cc-modal__pct {
+	color: #EF4444;
+	font-weight: 700;
+}
+
+html[data-mode="light"] .cc-modal__pct {
+	color: #F87171;
+}
+
+.cc-modal__actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	margin-top: 18px;
+}
+
+.cc-modal__btn {
+	padding: 7px 14px;
+	border-radius: 6px;
+	border: 1px solid transparent;
+	font-size: 13px;
+	cursor: pointer;
+	font-family: inherit;
+	transition: opacity 150ms ease, background-color 150ms ease;
+}
+
+.cc-modal__btn:hover {
+	opacity: 0.88;
+}
+
+.cc-modal__btn:focus-visible {
+	outline: 2px solid #5aa6ff;
+	outline-offset: 2px;
+}
+
+.cc-modal__btn--secondary {
+	background: transparent;
+	border-color: #787877;
+	color: inherit;
+}
+
+html[data-mode="light"] .cc-modal__btn--secondary {
+	border-color: #bfbfbf;
+}
+
+.cc-modal__btn--primary {
+	background: #EF4444;
+	color: white;
+	border-color: transparent;
+}
+
+html[data-mode="light"] .cc-modal__btn--primary {
+	background: #F87171;
+}

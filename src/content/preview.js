@@ -79,6 +79,7 @@
 			this.debounceTimer = null;
 
 			this.currentConvTokens = 0;
+			this.currentConversationId = null; // Phase D: passed in via setCurrentConversationTokens
 			this.themeObserver = null;
 			this.attachObserver = null;
 		}
@@ -185,8 +186,9 @@
 		}
 
 		/** Called by main.js whenever the upstream conversation token count changes. */
-		setCurrentConversationTokens(n) {
+		setCurrentConversationTokens(n, conversationId = null) {
 			this.currentConvTokens = typeof n === 'number' && Number.isFinite(n) ? n : 0;
+			this.currentConversationId = conversationId || null;
 			this._render();
 		}
 
@@ -249,6 +251,14 @@
 			const projectedTotal = currentTotal + deltaTokens;
 			const projectedPctRaw = (projectedTotal / limit) * 100; // unclamped — used for over-limit detection
 			const projectedPct = Math.max(0, Math.min(100, projectedPctRaw));
+
+			// Phase D: trigger handoff modal once per conversation when projection ≥ 85%
+			if (this.currentConversationId && CC.modal?.maybeShow) {
+				CC.modal.maybeShow({
+					projectedPct: projectedPctRaw,
+					conversationId: this.currentConversationId
+				});
+			}
 
 			// Round once so the visual % matches the comparison (avoids "47% → 47%" looking redundant)
 			const currentRounded = Math.round(currentPct);
