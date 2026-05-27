@@ -36,8 +36,11 @@
 
 	// --- Fork additions: utilization thresholds (percentages) ---
 	CC.THRESHOLDS = Object.freeze({
-		YELLOW: 50,  // >= 50% → yellow tier
-		RED: 70,     // >= 70% → red tier
-		MODAL: 85    // >= 85% → trigger handoff modal (Phase D)
+		// Color tier thresholds (apply to all bars)
+		YELLOW: 50,         // >= 50% → yellow tier
+		RED: 70,            // >= 70% → red tier
+		// Modal trigger thresholds (Phase G: moved from context to session/weekly quota)
+		SESSION_MODAL: 60,  // >= 60% on 5-hour session → trigger handoff modal (Phase H: lowered from 80)
+		WEEKLY_MODAL: 80    // >= 80% on 7-day weekly → trigger handoff modal
 	});
 })();

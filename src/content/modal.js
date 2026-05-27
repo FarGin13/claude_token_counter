@@ -1,17 +1,31 @@
 /**
  * Handoff Modal — fork addition.
  *
- * Pops a Claude-style dialog when projected context % crosses CC.THRESHOLDS.MODAL (85%).
- * Two CTAs:
- *   1. "Send anyway"   — dismiss, let the user send
- *   2. "Help me save context" — insert a structured handoff prompt into the chat input
+ * Pops a Claude-style dialog when the user's 5-hour session OR 7-day weekly
+ * quota crosses CC.THRESHOLDS.SESSION_MODAL / WEEKLY_MODAL (both 80%).
  *
- * Fires at most once per conversation per page load. The shown-for-conversation
- * Set is intentionally in-memory only — see DESIGN.md for the persistence decision.
+ * Three variants depending on what's crossed:
+ *   - Variant 1: session only
+ *   - Variant 2: weekly only
+ *   - Variant 3: both (single combined popup, not two separate modals)
+ *
+ * Two CTAs:
+ *   1. "Send anyway"           — dismiss, let the user send
+ *   2. "Insert handoff prompt" — replace input with a structured 5-point
+ *      memory-extraction template so the user's next message becomes a
+ *      portable handoff for use in another conversation or AI tool
+ *
+ * Tracking:
+ *   - Shown-state is keyed by reset-window TIMESTAMP, not by user/conversation.
+ *   - When a window resets, its reset-timestamp changes — modal can fire again
+ *     for the new window's 80% crossing.
+ *   - State persists across page reloads via chrome.storage.local (Phase G).
  */
 (() => {
 	'use strict';
 	const CC = (globalThis.ClaudeCounter = globalThis.ClaudeCounter || {});
+
+	const STORAGE_KEY = 'cc_modal_shown_resets';
 
 	const HANDOFF_PROMPT = `We're approaching the end of this conversation's usable context.
 Please produce a structured memory handoff I can paste into another
@@ -55,11 +69,17 @@ Format as Markdown. Be comprehensive but concise.`;
 		constructor() {
 			this.backdrop = null;
 			this.modal = null;
-			this.percentSpan = null;
+			this.titleEl = null;
+			this.bodyEl = null;
 			this.dismissBtn = null;
 			this.handoffBtn = null;
 			this.isOpen = false;
-			this.shownForConversations = new Set();
+
+			// Phase G: track shown-state keyed by reset-window timestamp (ms since epoch).
+			// When a window resets, its reset-timestamp changes — modal fires again.
+			this.shownForSessionResetMs = null;
+			this.shownForWeeklyResetMs = null;
+
 			this.boundKeyHandler = null;
 		}
 
@@ -73,30 +93,13 @@ Format as Markdown. Be comprehensive but concise.`;
 			this.modal.setAttribute('aria-modal', 'true');
 			this.modal.setAttribute('aria-labelledby', 'cc-modal-title');
 
-			// Title
-			const title = document.createElement('h3');
-			title.id = 'cc-modal-title';
-			title.className = 'cc-modal__title';
-			title.textContent = 'Approaching context limit';
+			this.titleEl = document.createElement('h3');
+			this.titleEl.id = 'cc-modal-title';
+			this.titleEl.className = 'cc-modal__title';
 
-			// Body
-			const body = document.createElement('div');
-			body.className = 'cc-modal__body';
+			this.bodyEl = document.createElement('div');
+			this.bodyEl.className = 'cc-modal__body';
 
-			const p1 = document.createElement('p');
-			p1.appendChild(document.createTextNode('Your next message will push this conversation to '));
-			this.percentSpan = document.createElement('strong');
-			this.percentSpan.className = 'cc-modal__pct';
-			p1.appendChild(this.percentSpan);
-			p1.appendChild(document.createTextNode(' of its 200k context limit.'));
-
-			const p2 = document.createElement('p');
-			p2.textContent = 'Once you hit 100%, older messages get compacted and detail can be lost. Consider using your next prompt to extract a structured handoff you can paste into a new conversation or another AI tool.';
-
-			body.appendChild(p1);
-			body.appendChild(p2);
-
-			// Actions
 			const actions = document.createElement('div');
 			actions.className = 'cc-modal__actions';
 
@@ -108,49 +111,121 @@ Format as Markdown. Be comprehensive but concise.`;
 			this.handoffBtn = document.createElement('button');
 			this.handoffBtn.type = 'button';
 			this.handoffBtn.className = 'cc-modal__btn cc-modal__btn--primary';
-			this.handoffBtn.textContent = 'Help me save context';
+			this.handoffBtn.textContent = 'Insert handoff prompt';
 
 			actions.appendChild(this.dismissBtn);
 			actions.appendChild(this.handoffBtn);
 
-			this.modal.appendChild(title);
-			this.modal.appendChild(body);
+			this.modal.appendChild(this.titleEl);
+			this.modal.appendChild(this.bodyEl);
 			this.modal.appendChild(actions);
 			this.backdrop.appendChild(this.modal);
 
-			// Events
 			this.dismissBtn.addEventListener('click', () => this.close());
 			this.handoffBtn.addEventListener('click', () => this._injectHandoffPrompt());
 			this.backdrop.addEventListener('click', (e) => {
 				if (e.target === this.backdrop) this.close();
 			});
-			// Stop clicks inside the modal from bubbling to backdrop
 			this.modal.addEventListener('click', (e) => e.stopPropagation());
 
 			document.body.appendChild(this.backdrop);
+
+			// Phase G: hydrate persisted tracking from chrome.storage.local
+			this._loadFromStorage();
 		}
 
 		/**
-		 * Called by preview.js on every render. Shows the modal once per conversation
-		 * when projected context % crosses CC.THRESHOLDS.MODAL.
+		 * Called from main.js on every usage update. Fires modal at most once per
+		 * reset window for whichever quotas have crossed 80%.
+		 *
+		 * @param {object} args
+		 * @param {{pct:number, resetMs:number}|null} args.session - five_hour quota info
+		 * @param {{pct:number, resetMs:number}|null} args.weekly  - seven_day quota info
 		 */
-		maybeShow({ projectedPct, conversationId }) {
+		maybeShow({ session, weekly }) {
 			if (this.isOpen) return;
-			if (typeof projectedPct !== 'number' || projectedPct < CC.THRESHOLDS.MODAL) return;
-			if (!conversationId) return;
-			if (this.shownForConversations.has(conversationId)) return;
 
-			this.shownForConversations.add(conversationId);
-			this._show(projectedPct);
+			const sessionCrossed = session
+				&& typeof session.pct === 'number'
+				&& session.pct >= CC.THRESHOLDS.SESSION_MODAL;
+			const weeklyCrossed = weekly
+				&& typeof weekly.pct === 'number'
+				&& weekly.pct >= CC.THRESHOLDS.WEEKLY_MODAL;
+
+			// "Already shown for this reset window" = stored reset timestamp matches current
+			const sessionAlreadyShown = sessionCrossed
+				&& this.shownForSessionResetMs === session.resetMs;
+			const weeklyAlreadyShown = weeklyCrossed
+				&& this.shownForWeeklyResetMs === weekly.resetMs;
+
+			const showSession = sessionCrossed && !sessionAlreadyShown;
+			const showWeekly = weeklyCrossed && !weeklyAlreadyShown;
+
+			if (!showSession && !showWeekly) return;
+
+			// Mark as shown BEFORE displaying so re-entry can't double-fire
+			if (showSession) this.shownForSessionResetMs = session.resetMs;
+			if (showWeekly) this.shownForWeeklyResetMs = weekly.resetMs;
+			this._saveToStorage(); // fire-and-forget — UI doesn't block on the write
+
+			this._show({
+				session: showSession ? session : null,
+				weekly: showWeekly ? weekly : null
+			});
 		}
 
-		_show(projectedPct) {
+		_show({ session, weekly }) {
 			if (!this.backdrop) return;
 
-			// Cap at 999 for display so the modal doesn't show ridiculous numbers
-			this.percentSpan.textContent = `${Math.round(Math.min(projectedPct, 999))}%`;
+			// Build title + body based on which quotas crossed
+			this.bodyEl.replaceChildren();
 
-			// Switch CTA label based on whether input already has content
+			if (session && weekly) {
+				// Variant 3: both crossed
+				this.titleEl.textContent = 'Both Claude quotas approaching limit';
+
+				const intro = document.createElement('p');
+				intro.textContent = "You're approaching the warning threshold on both quota windows:";
+				this.bodyEl.appendChild(intro);
+
+				const list = document.createElement('ul');
+				list.className = 'cc-modal__list';
+				const sessionItem = document.createElement('li');
+				sessionItem.textContent = `Daily session: ${Math.round(session.pct)}%`;
+				const weeklyItem = document.createElement('li');
+				weeklyItem.textContent = `Weekly quota: ${Math.round(weekly.pct)}%`;
+				list.appendChild(sessionItem);
+				list.appendChild(weeklyItem);
+				this.bodyEl.appendChild(list);
+
+				const advice = document.createElement('p');
+				advice.textContent = 'Sending more messages may exhaust your remaining quota and lock you out of Claude until the windows reset. Consider using your next message to extract a structured handoff you can paste into another conversation or AI tool.';
+				this.bodyEl.appendChild(advice);
+			} else if (session) {
+				// Variant 1: session only
+				this.titleEl.textContent = '5-hour session limit approaching';
+
+				const p1 = document.createElement('p');
+				p1.textContent = `Your daily session is at ${Math.round(session.pct)}%. Sending more messages may exhaust your remaining quota and lock you out of Claude until the session resets.`;
+				this.bodyEl.appendChild(p1);
+
+				const p2 = document.createElement('p');
+				p2.textContent = 'Consider using your next message to extract a structured handoff you can paste into another conversation or AI tool while you wait.';
+				this.bodyEl.appendChild(p2);
+			} else if (weekly) {
+				// Variant 2: weekly only
+				this.titleEl.textContent = 'Weekly quota approaching limit';
+
+				const p1 = document.createElement('p');
+				p1.textContent = `Your weekly quota is at ${Math.round(weekly.pct)}%. Sending more messages may exhaust your remaining quota and lock you out of Claude until the weekly window resets.`;
+				this.bodyEl.appendChild(p1);
+
+				const p2 = document.createElement('p');
+				p2.textContent = 'Consider using your next message to extract a structured handoff you can paste into another conversation or AI tool while you wait.';
+				this.bodyEl.appendChild(p2);
+			}
+
+			// CTA label depends on whether input already has text
 			const input = findChatInput();
 			const hasText = input && input.textContent.trim().length > 0;
 			this.handoffBtn.textContent = hasText
@@ -165,7 +240,6 @@ Format as Markdown. Be comprehensive but concise.`;
 			};
 			document.addEventListener('keydown', this.boundKeyHandler);
 
-			// Focus dismiss by default — less destructive default action
 			this.dismissBtn.focus();
 		}
 
@@ -187,14 +261,12 @@ Format as Markdown. Be comprehensive but concise.`;
 				return;
 			}
 
-			// Focus must come first so execCommand operates on this element
 			input.focus();
 
-			// Primary path: select-all + execCommand('insertText').
-			// Claude.ai uses ProseMirror (React-based contenteditable). Plain
-			// textContent assignment doesn't update ProseMirror's internal state,
-			// which leaves the send button disabled. execCommand fires the
-			// synthetic beforeinput/input events ProseMirror listens for.
+			// Primary path: select-all + execCommand('insertText') for ProseMirror compatibility.
+			// Claude.ai's ProseMirror editor only updates its internal state in response to
+			// synthetic beforeinput/input events, which execCommand fires. Plain textContent
+			// assignment doesn't trigger them and leaves the send button disabled.
 			let inserted = false;
 			try {
 				const range = document.createRange();
@@ -208,9 +280,7 @@ Format as Markdown. Be comprehensive but concise.`;
 				console.warn('[TokenCounter] handoff: execCommand path failed', e);
 			}
 
-			// Fallback path: if execCommand returned false or threw, fall back to
-			// direct textContent assignment + InputEvent dispatch. May not update
-			// editor state in all frameworks, but better than nothing.
+			// Fallback: direct textContent + InputEvent dispatch
 			if (!inserted) {
 				try {
 					input.textContent = HANDOFF_PROMPT;
@@ -233,6 +303,46 @@ Format as Markdown. Be comprehensive but concise.`;
 			}
 
 			this.close();
+		}
+
+		/**
+		 * Phase G: load the persisted shown-state from chrome.storage.local.
+		 * Async fire-and-forget — doesn't block modal initialization.
+		 */
+		async _loadFromStorage() {
+			if (!globalThis.chrome?.storage?.local) return;
+			try {
+				const result = await chrome.storage.local.get([STORAGE_KEY]);
+				const data = result?.[STORAGE_KEY];
+				if (data && typeof data === 'object') {
+					if (typeof data.sessionResetMs === 'number') {
+						this.shownForSessionResetMs = data.sessionResetMs;
+					}
+					if (typeof data.weeklyResetMs === 'number') {
+						this.shownForWeeklyResetMs = data.weeklyResetMs;
+					}
+				}
+			} catch (e) {
+				console.warn('[TokenCounter] modal: storage load failed', e);
+			}
+		}
+
+		/**
+		 * Phase G: persist shown-state so the modal doesn't re-pop after reload.
+		 * Fire-and-forget — UI doesn't wait for the write.
+		 */
+		async _saveToStorage() {
+			if (!globalThis.chrome?.storage?.local) return;
+			try {
+				await chrome.storage.local.set({
+					[STORAGE_KEY]: {
+						sessionResetMs: this.shownForSessionResetMs,
+						weeklyResetMs: this.shownForWeeklyResetMs
+					}
+				});
+			} catch (e) {
+				console.warn('[TokenCounter] modal: storage save failed', e);
+			}
 		}
 	}
 

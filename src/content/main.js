@@ -135,10 +135,6 @@
 	});
 	ui.initialize();
 
-	// --- Fork addition: pre-send token preview ---
-	const preview = new CC.preview.PreviewBar();
-	preview.initialize();
-
 	// Bridge must be ready before we can make requests
 	const bridgeReady = CC.injectBridgeOnce();
 
@@ -152,6 +148,22 @@
 		usageResetMs.five_hour = normalized.five_hour?.resets_at ? Date.parse(normalized.five_hour.resets_at) : null;
 		usageResetMs.seven_day = normalized.seven_day?.resets_at ? Date.parse(normalized.seven_day.resets_at) : null;
 		ui.setUsage(normalized);
+
+		// Phase G: trigger handoff modal when session and/or weekly quotas cross 80%.
+		// Modal logic decides variant (1/2/3) and tracks shown-state per reset window.
+		if (CC.modal?.maybeShow) {
+			const sessionInfo = normalized.five_hour
+				&& typeof normalized.five_hour.utilization === 'number'
+				&& usageResetMs.five_hour
+				? { pct: normalized.five_hour.utilization, resetMs: usageResetMs.five_hour }
+				: null;
+			const weeklyInfo = normalized.seven_day
+				&& typeof normalized.seven_day.utilization === 'number'
+				&& usageResetMs.seven_day
+				? { pct: normalized.seven_day.utilization, resetMs: usageResetMs.seven_day }
+				: null;
+			CC.modal.maybeShow({ session: sessionInfo, weekly: weeklyInfo });
+		}
 	}
 
 	function updateOrgIdIfNeeded(newOrgId) {
@@ -211,7 +223,6 @@
 
 		const metrics = await CC.tokens.computeConversationMetrics(data);
 		ui.setConversationMetrics({ totalTokens: metrics.totalTokens, cachedUntil: metrics.cachedUntil });
-		preview.setCurrentConversationTokens(metrics.totalTokens, conversationId); // Fork addition (Phase D: pass convId for modal tracking)
 	}
 
 	function handleMessageLimit(messageLimit) {
@@ -229,10 +240,7 @@
 		// Attach usage line and header independently - they have different anchor elements
 		// and CHAT_MENU_TRIGGER doesn't exist on home/new pages
 		waitForElement(CC.DOM.MODEL_SELECTOR_DROPDOWN, 60000).then((el) => {
-			if (el) {
-				ui.attachUsageLine();
-				preview.attach(); // Fork addition: preview anchors on the same grid container
-			}
+			if (el) ui.attachUsageLine();
 		});
 		waitForElement(CC.DOM.CHAT_MENU_TRIGGER, 60000).then((el) => {
 			if (el) ui.attachHeader();
@@ -240,7 +248,6 @@
 
 		if (!currentConversationId) {
 			ui.setConversationMetrics();
-			preview.setCurrentConversationTokens(0, null); // Fork addition
 			return;
 		}
 

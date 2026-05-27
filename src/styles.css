@@ -139,25 +139,6 @@
 	background: var(--cc-tier-red);
 }
 
-/* --- Fork additions: pre-send preview row --- */
-.cc-previewRow {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin-top: 2px;
-	user-select: none;
-	width: 100%;
-}
-
-.cc-previewText {
-	white-space: nowrap;
-}
-
-.cc-bar--preview {
-	flex: 1;
-	width: auto;
-}
-
 /* --- Fork additions: handoff modal --- */
 .cc-modal-backdrop {
 	position: fixed;
@@ -197,6 +178,17 @@ html[data-mode="light"] .cc-modal {
 	margin: 0 0 10px;
 	font-size: 13px;
 	line-height: 1.5;
+}
+
+.cc-modal__list {
+	margin: 8px 0;
+	padding-left: 24px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.cc-modal__list li {
+	margin: 4px 0;
 }
 
 .cc-modal__pct {
