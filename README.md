@@ -4,7 +4,7 @@ A browser extension for [claude.ai](https://claude.ai) that turns Claude's sessi
 
 > **Forked from [she-llac/claude-counter](https://github.com/she-llac/claude-counter)** (MIT). All upstream features (header token count, cache timer, session + weekly usage bars) are preserved. This fork adds the warning system and the handoff modal described below.
 
-![Session and weekly usage bars showing the traffic-light tier colors](./screenshots/01-preview-and-bars.png)
+![Handoff modal firing when session quota crosses 60%](./screenshots/01-handoff-modal.png)
 
 ## What this fork adds
 
@@ -16,28 +16,24 @@ A browser extension for [claude.ai](https://claude.ai) that turns Claude's sessi
 
 ## Screenshots
 
-> The screenshots below are from an earlier development build (v0.5.0). The visible structures (session/weekly bars, modal layout, CTAs) are still current in v0.6.0, but **specific copy** in the modal and a now-removed pre-send preview row visible in the first shot are not in the current build. See [DESIGN.md](./DESIGN.md) for what changed.
+### The handoff modal
 
-### Traffic-light usage bars
+![Handoff modal — '5-hour session limit approaching' with Send anyway and Insert handoff prompt CTAs](./screenshots/01-handoff-modal.png)
 
-![Session bar in red, weekly bar in green](./screenshots/01-preview-and-bars.png)
-
-Session bar (5-hour window) in red at 100%, weekly (7-day) in green at 22% — both showing the green/yellow/red tier colors. The mini header bar at the top of the chat adopts the same color scheme.
-
-*(The third row in this screenshot — `+699 tok (est.) · 116% → 117% · over limit` — was a pre-send token preview that has since been removed. Only the two usage bars above it are current.)*
-
-### Handoff modal
-
-![Handoff modal with Send anyway and Insert handoff prompt CTAs](./screenshots/02-handoff-modal.png)
-
-The modal opens once per reset window when session or weekly quota crosses its threshold. Two CTAs:
+Fires when your 5-hour session crosses 60% or your 7-day weekly crosses 80%. This is the session-only variant; if weekly crosses too, the modal shows a combined version listing both. Two CTAs:
 
 - **Send anyway** — closes the dialog, you continue normally
-- **Insert handoff prompt** *(or "Replace input with handoff prompt" if you've already typed something)* — injects a structured 5-point memory-extraction template into Claude.ai's input box. Your next message becomes a portable summary you can paste into a new conversation or another AI tool.
+- **Insert handoff prompt** *(or "Replace input with handoff prompt" if you've already typed something)* — injects a structured 5-point memory-extraction template into Claude.ai's input box
 
-Uses `document.execCommand('insertText')` so ProseMirror's editor state updates properly and the send button stays enabled.
+Modal opens at most once per reset window; dismissal persists across page refreshes and browser restarts.
 
-*(The title and percentage shown in this earlier screenshot were context-based. The current v0.6.0 modal uses session/weekly trigger text instead — see [DESIGN.md](./DESIGN.md#why-the-modal-moved-from-context--to-session--weekly-) for the rationale.)*
+### Handoff prompt loaded into the input
+
+![Structured 5-point handoff template loaded into Claude's input box, with session bar in red and weekly bar in green below](./screenshots/02-handoff-prompt-injected.png)
+
+Result of clicking "Insert handoff prompt". The 5-point template is now in Claude's input box, ready to edit and send. Your next message becomes a portable memory summary you can paste into a new conversation or another AI tool when the quota window resets.
+
+The session bar (red at 100%) and weekly bar (green at 7%) underneath show the traffic-light tier colors. Uses `document.execCommand('insertText')` so ProseMirror's editor state updates properly and the send button stays enabled.
 
 ## Installation
 
